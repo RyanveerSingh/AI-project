@@ -1,18 +1,22 @@
 import os
+from dotenv import load_dotenv  # Import load_dotenv
 from huggingface_hub import InferenceClient, get_token
 import google.generativeai as genai
 
 # ================= CONFIGURATION =================
-# 1. PASTE YOUR GEMINI API KEY BELOW
+# Load environment variables from .env file first
+load_dotenv()
+
+# Get the key from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Models to compare (Hugging Face)
 MODEL_A = "meta-llama/Meta-Llama-3-8B-Instruct"
 MODEL_B = "Qwen/Qwen2.5-Coder-32B-Instruct"
 
-# Judge Model (Google Gemini) - Using the working version you found
+# Judge Model (Google Gemini)
 JUDGE_MODEL = "gemini-2.5-flash" 
-# Note: If 'gemini-2.5-flash' works for you, change the line above to:
+# Note: If 'gemini-2.5-flash' works for you specifically, change the line above to:
 # JUDGE_MODEL = "gemini-2.5-flash"
 # =================================================
 
@@ -28,10 +32,13 @@ def ask_hf_model(client, model_id, question):
 def ask_gemini_judge(question, answer_a, answer_b):
     """Send both answers to Gemini with the detailed expert prompt."""
     try:
+        # Configure with the loaded key
+        if not GEMINI_API_KEY:
+            return "Judge Error: API Key not found in .env file."
+            
         genai.configure(api_key=GEMINI_API_KEY)
         model = genai.GenerativeModel(JUDGE_MODEL)
         
-        # The detailed prompt you requested
         prompt = f"""
 You are an expert evaluator of AI responses. Your task is to compare two answers given by different models to the same question and determine which one is more accurate, complete, and reliable.
 
@@ -86,9 +93,12 @@ Corrected & Improved Final Answer:
 def main():
     print("=== AI Comparator with Expert Gemini Judge ===")
     
-    # Check Gemini Key
-    if GEMINI_API_KEY == "PASTE_YOUR_GEMINI_API_KEY_HERE":
-        print("\n[ERROR] Please edit main.py and insert your Gemini API Key!")
+    # Check Gemini Key properly
+    if not GEMINI_API_KEY:
+        print("\n[ERROR] GEMINI_API_KEY not found!")
+        print("1. Ensure you have a file named '.env' in this folder.")
+        print("2. Ensure the file contains: GEMINI_API_KEY=your_actual_key_here")
+        print("3. Ensure there are no spaces around the '=' sign.")
         return
 
     # Check HF Token
@@ -119,13 +129,14 @@ def main():
     answer_b = ask_hf_model(client, MODEL_B, question)
     print(f"{MODEL_B.split('/')[-1]} responded.")
 
-    # 3. Display Raw Responses (Optional, can be commented out if too long)
+    # 3. Display Raw Responses (Truncated for readability)
     print("\n" + "="*40)
     print("=== RAW RESPONSES ===")
     print("="*40)
-    print(f"\n[Model A - {MODEL_A.split('/')[-1]}]:\n{answer_a[:500]}... (truncated)")
+    # Show first 600 chars to see more context before truncation
+    print(f"\n[Model A - {MODEL_A.split('/')[-1]}]:\n{answer_a[:600]}... (truncated)")
     print("-" * 30)
-    print(f"\n[Model B - {MODEL_B.split('/')[-1]}]:\n{answer_b[:500]}... (truncated)")
+    print(f"\n[Model B - {MODEL_B.split('/')[-1]}]:\n{answer_b[:600]}... (truncated)")
     print("="*40)
 
     # 4. Ask Gemini to Judge
